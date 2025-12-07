@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState, Plant, DiagnosisResult, HealthStatus } from './types';
+import { ViewState, Plant, DiagnosisResult, HealthStatus, Species } from './types';
 import { Navigation } from './components/Navigation';
 import { PlantCard } from './components/PlantCard';
 import { CameraView } from './components/CameraView';
@@ -8,6 +8,8 @@ import { PlantDetailView } from './components/PlantDetailView';
 import { ExpertView } from './components/ExpertView';
 import { SplashScreen } from './components/SplashScreen';
 import { SettingsView } from './components/SettingsView';
+import { PlantDatabaseView } from './components/PlantDatabaseView';
+import { SpeciesDetailView } from './components/SpeciesDetailView';
 import { UserIcon, PlusIcon, DropIcon, LeafIcon } from './components/Icons';
 
 // Mock weather data
@@ -23,6 +25,7 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('dashboard');
   const [plants, setPlants] = useState<Plant[]>([]);
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
+  const [selectedSpecies, setSelectedSpecies] = useState<Species | null>(null);
   
   // State for the diagnosis flow
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
@@ -176,7 +179,21 @@ const App: React.FC = () => {
     return <ExpertView currentView={view} onChangeView={setView} />;
   }
 
-  // 4. Plant Detail View
+  // 4. Database View (Search)
+  if (view === 'database') {
+      if (selectedSpecies) {
+          return <SpeciesDetailView species={selectedSpecies} onBack={() => setSelectedSpecies(null)} />;
+      }
+      return (
+        <PlantDatabaseView 
+            currentView={view} 
+            onChangeView={setView} 
+            onSelectSpecies={setSelectedSpecies}
+        />
+      );
+  }
+
+  // 5. Plant Detail View
   if (selectedPlantId) {
     const plant = plants.find(p => p.id === selectedPlantId);
     if (plant) {
@@ -194,7 +211,7 @@ const App: React.FC = () => {
     }
   }
 
-  // 5. Dashboard (Default)
+  // 6. Dashboard (Default)
   return (
     <div className="min-h-screen pb-32 max-w-md mx-auto relative overflow-x-hidden">
       

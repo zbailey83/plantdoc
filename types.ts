@@ -42,7 +42,22 @@ export interface Plant {
   diagnosisHistory: DiagnosisResult[];
 }
 
-export type ViewState = 'dashboard' | 'camera' | 'plant-detail' | 'expert' | 'premium';
+export interface Species {
+  id: string;
+  commonName: string;
+  scientificName: string;
+  description: string;
+  imageUrl: string;
+  care: {
+    water: string;
+    light: string;
+    temperature: string;
+    humidity: string;
+  };
+  commonIssues: string[];
+}
+
+export type ViewState = 'dashboard' | 'camera' | 'plant-detail' | 'expert' | 'premium' | 'database';
 
 export interface ViewProps {
   changeView: (view: ViewState, plantId?: string) => void;
