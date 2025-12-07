@@ -1,0 +1,7 @@
+{
+  "name": "PlantDoc",
+  "description": "An AI-powered plant diagnostic tool acting as a Fitbit for your plants. Diagnose issues, track health, and manage care schedules.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
