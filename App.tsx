@@ -4,9 +4,13 @@ import { Navigation } from './components/Navigation';
 import { PlantCard } from './components/PlantCard';
 import { CameraView } from './components/CameraView';
 import { DiagnosisResultView } from './components/DiagnosisResultView';
-import { LeafIcon, UserIcon, PlusIcon, DropIcon } from './components/Icons';
+import { PlantDetailView } from './components/PlantDetailView';
+import { ExpertView } from './components/ExpertView';
+import { SplashScreen } from './components/SplashScreen';
+import { SettingsView } from './components/SettingsView';
+import { UserIcon, PlusIcon, DropIcon, LeafIcon } from './components/Icons';
 
-// Mock weather data since we don't have an API key for the demo
+// Mock weather data
 const MOCK_WEATHER = {
   temp: 72,
   condition: "Sunny",
@@ -14,8 +18,11 @@ const MOCK_WEATHER = {
 };
 
 const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<ViewState>('dashboard');
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
   
   // State for the diagnosis flow
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
@@ -37,13 +44,27 @@ const App: React.FC = () => {
           id: '1',
           name: 'Monstera',
           species: 'Monstera deliciosa',
-          imageUrl: 'https://picsum.photos/400/400?random=1',
+          imageUrl: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&q=80&w=800',
           acquiredDate: new Date().toISOString(),
           status: HealthStatus.THRIVING,
           schedule: {
             waterFrequencyDays: 7,
             lastWatered: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago (Overdue)
             nextWatering: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          diagnosisHistory: []
+        },
+        {
+          id: '2',
+          name: 'Snake Plant',
+          species: 'Sansevieria trifasciata',
+          imageUrl: 'https://images.unsplash.com/photo-1593482886875-6647f38fa83f?auto=format&fit=crop&q=80&w=800',
+          acquiredDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),
+          status: HealthStatus.THRIVING,
+          schedule: {
+            waterFrequencyDays: 14,
+            lastWatered: new Date().toISOString(),
+            nextWatering: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString()
           },
           diagnosisHistory: []
         }
@@ -69,8 +90,17 @@ const App: React.FC = () => {
     setView('dashboard');
   };
 
-  const handleWaterPlant = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const handleUpdatePlant = (updatedPlant: Plant) => {
+      setPlants(prev => prev.map(p => p.id === updatedPlant.id ? updatedPlant : p));
+  };
+
+  const handleDeletePlant = (id: string) => {
+    setPlants(prev => prev.filter(p => p.id !== id));
+    setSelectedPlantId(null);
+    setView('dashboard');
+  };
+
+  const handleWaterPlant = (id: string) => {
     setPlants(prev => prev.map(p => {
       if (p.id === id) {
         const nextDate = new Date();
@@ -89,6 +119,10 @@ const App: React.FC = () => {
   };
 
   // --- Views Rendering ---
+
+  if (showSplash) {
+      return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   // 1. Diagnosis Result View (Overlay)
   if (diagnosisResult && diagnosisImage) {
@@ -115,45 +149,33 @@ const App: React.FC = () => {
     );
   }
 
-  // 3. Expert View (Monetization Placeholder)
+  // 3. Expert View
   if (view === 'expert') {
-    return (
-      <div className="min-h-screen pb-32 max-w-md mx-auto relative px-6 pt-12">
-         <div className="clay-card p-8 mb-8 bg-emerald-500/10 border-emerald-200">
-            <h1 className="text-3xl font-bold text-slate-800 mb-2">Expert Help</h1>
-            <p className="text-slate-600">Connect with certified botanists.</p>
-         </div>
-         
-         <div className="space-y-6">
-            <div className="clay-card p-6 text-center">
-               <div className="w-24 h-24 clay-inset rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-600">
-                 <LeafIcon className="w-10 h-10" />
-               </div>
-               <h2 className="text-2xl font-bold text-slate-800">Dr. Green Thumb</h2>
-               <p className="text-emerald-600 font-medium mb-6">Senior Botanist • 15 Yrs Exp</p>
-               
-               <div className="clay-inset p-4 mb-6 mx-4">
-                  <p className="text-3xl font-bold text-slate-800">$30<span className="text-base text-slate-400 font-medium">/hr</span></p>
-               </div>
-               
-               <button className="w-full clay-btn-primary py-4 font-bold text-lg">
-                 Book Now
-               </button>
-            </div>
-
-            <div className="clay-card-sm p-5 border-l-8 border-yellow-400">
-              <h3 className="font-bold text-slate-800 mb-1">Go Premium</h3>
-              <p className="text-slate-600 text-sm">Subscribe for $9/mo to get unlimited AI diagnoses and priority support.</p>
-            </div>
-         </div>
-         <Navigation currentView={view} onChange={setView} />
-      </div>
-    );
+    return <ExpertView currentView={view} onChangeView={setView} />;
   }
 
-  // 4. Dashboard (Default)
+  // 4. Plant Detail View
+  if (selectedPlantId) {
+    const plant = plants.find(p => p.id === selectedPlantId);
+    if (plant) {
+        return (
+            <PlantDetailView 
+                plant={plant} 
+                onBack={() => setSelectedPlantId(null)}
+                onDelete={handleDeletePlant}
+                onWater={handleWaterPlant}
+                onUpdate={handleUpdatePlant}
+            />
+        );
+    }
+  }
+
+  // 5. Dashboard (Default)
   return (
     <div className="min-h-screen pb-32 max-w-md mx-auto relative overflow-x-hidden">
+      
+      {showSettings && <SettingsView onClose={() => setShowSettings(false)} />}
+
       {/* Header & Weather */}
       <header className="px-6 pt-12 pb-6">
         <div className="flex justify-between items-center mb-8">
@@ -161,9 +183,12 @@ const App: React.FC = () => {
             <h1 className="text-3xl font-bold text-slate-800 tracking-tight">My Garden</h1>
             <p className="text-slate-500 font-medium mt-1">Hello, Planter 🌱</p>
           </div>
-          <div className="w-14 h-14 clay-card flex items-center justify-center">
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="w-14 h-14 clay-card flex items-center justify-center active:scale-95 transition-transform"
+          >
             <UserIcon className="w-7 h-7 text-slate-700" />
-          </div>
+          </button>
         </div>
 
         {/* Weather Widget */}
@@ -217,11 +242,14 @@ const App: React.FC = () => {
               <div key={plant.id} className="relative group">
                 <PlantCard 
                   plant={plant} 
-                  onClick={() => {/* Show detail */}} 
+                  onClick={() => setSelectedPlantId(plant.id)} 
                 />
                 {/* Quick Action: Water */}
                 <button 
-                  onClick={(e) => handleWaterPlant(e, plant.id)}
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      handleWaterPlant(plant.id);
+                  }}
                   className="absolute right-6 bottom-10 p-3 clay-btn-secondary rounded-full active:scale-95 transition-transform z-10"
                   title="Mark as Watered"
                 >
