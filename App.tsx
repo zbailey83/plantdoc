@@ -50,7 +50,13 @@ const App: React.FC = () => {
           schedule: {
             waterFrequencyDays: 7,
             lastWatered: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago (Overdue)
-            nextWatering: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+            nextWatering: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            mistFrequencyDays: 3,
+            lastMisted: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+            nextMisting: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            fertilizeFrequencyDays: 30,
+            lastFertilized: new Date().toISOString(),
+            nextFertilizing: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
           },
           diagnosisHistory: []
         },
@@ -64,7 +70,11 @@ const App: React.FC = () => {
           schedule: {
             waterFrequencyDays: 14,
             lastWatered: new Date().toISOString(),
-            nextWatering: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString()
+            nextWatering: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString(),
+            mistFrequencyDays: 0, // Not needed
+            fertilizeFrequencyDays: 60,
+            lastFertilized: new Date(Date.now() - 61 * 24 * 60 * 60 * 1000).toISOString(),
+            nextFertilizing: new Date().toISOString(),
           },
           diagnosisHistory: []
         }
@@ -100,22 +110,34 @@ const App: React.FC = () => {
     setView('dashboard');
   };
 
-  const handleWaterPlant = (id: string) => {
-    setPlants(prev => prev.map(p => {
-      if (p.id === id) {
-        const nextDate = new Date();
-        nextDate.setDate(nextDate.getDate() + p.schedule.waterFrequencyDays);
-        return {
-          ...p,
-          schedule: {
-            ...p.schedule,
-            lastWatered: new Date().toISOString(),
-            nextWatering: nextDate.toISOString()
-          }
-        };
-      }
-      return p;
-    }));
+  // Generic handler for marking care tasks as done
+  const updateScheduleDate = (id: string, type: 'water' | 'mist' | 'fertilize') => {
+      setPlants(prev => prev.map(p => {
+        if (p.id !== id) return p;
+
+        const now = new Date();
+        const schedule = { ...p.schedule };
+        
+        if (type === 'water') {
+            const freq = schedule.waterFrequencyDays;
+            schedule.lastWatered = now.toISOString();
+            schedule.nextWatering = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+        } else if (type === 'mist') {
+            const freq = schedule.mistFrequencyDays || 0;
+            if (freq > 0) {
+                schedule.lastMisted = now.toISOString();
+                schedule.nextMisting = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+            }
+        } else if (type === 'fertilize') {
+            const freq = schedule.fertilizeFrequencyDays || 0;
+            if (freq > 0) {
+                schedule.lastFertilized = now.toISOString();
+                schedule.nextFertilizing = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+            }
+        }
+
+        return { ...p, schedule };
+      }));
   };
 
   // --- Views Rendering ---
@@ -163,7 +185,9 @@ const App: React.FC = () => {
                 plant={plant} 
                 onBack={() => setSelectedPlantId(null)}
                 onDelete={handleDeletePlant}
-                onWater={handleWaterPlant}
+                onWater={() => updateScheduleDate(plant.id, 'water')}
+                onMist={() => updateScheduleDate(plant.id, 'mist')}
+                onFertilize={() => updateScheduleDate(plant.id, 'fertilize')}
                 onUpdate={handleUpdatePlant}
             />
         );
@@ -248,7 +272,7 @@ const App: React.FC = () => {
                 <button 
                   onClick={(e) => {
                       e.stopPropagation();
-                      handleWaterPlant(plant.id);
+                      updateScheduleDate(plant.id, 'water');
                   }}
                   className="absolute right-6 bottom-10 p-3 clay-btn-secondary rounded-full active:scale-95 transition-transform z-10"
                   title="Mark as Watered"

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DiagnosisResult, HealthStatus, Plant } from '../types';
-import { ArrowLeftIcon, CheckIcon, AlertIcon, DropIcon } from './Icons';
+import { ArrowLeftIcon, CheckIcon, AlertIcon, DropIcon, SprayIcon, SparklesIcon } from './Icons';
 
 interface DiagnosisResultViewProps {
   result: DiagnosisResult;
@@ -14,18 +14,41 @@ export const DiagnosisResultView: React.FC<DiagnosisResultViewProps> = ({ result
   
   const handleSave = () => {
     // Construct new plant object
+    const now = new Date();
+    
+    // Calculate next dates if frequency > 0
+    const nextWatering = new Date(now.getTime() + result.suggestedWaterFrequency * 24 * 60 * 60 * 1000).toISOString();
+    
+    const mistFreq = result.suggestedMistFrequency || 0;
+    const nextMisting = mistFreq > 0 
+        ? new Date(now.getTime() + mistFreq * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+
+    const fertFreq = result.suggestedFertilizeFrequency || 0;
+    const nextFertilizing = fertFreq > 0
+        ? new Date(now.getTime() + fertFreq * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+
     const newPlant: Plant = {
       id: Date.now().toString(), // Simple ID
       name: result.plantName,
       species: result.scientificName,
       imageUrl: imageUrl,
-      acquiredDate: new Date().toISOString(),
+      acquiredDate: now.toISOString(),
       status: result.healthStatus,
       diagnosisHistory: [result],
       schedule: {
         waterFrequencyDays: result.suggestedWaterFrequency,
-        lastWatered: new Date().toISOString(), // Assume watered today if setting up
-        nextWatering: new Date(Date.now() + result.suggestedWaterFrequency * 24 * 60 * 60 * 1000).toISOString(),
+        lastWatered: now.toISOString(), // Assume watered today if setting up
+        nextWatering: nextWatering,
+        
+        mistFrequencyDays: mistFreq,
+        lastMisted: mistFreq > 0 ? now.toISOString() : undefined,
+        nextMisting: nextMisting,
+
+        fertilizeFrequencyDays: fertFreq,
+        lastFertilized: fertFreq > 0 ? now.toISOString() : undefined,
+        nextFertilizing: nextFertilizing
       }
     };
     onSave(newPlant);
@@ -98,15 +121,38 @@ export const DiagnosisResultView: React.FC<DiagnosisResultViewProps> = ({ result
           </ul>
         </div>
 
-         {/* Schedule Preview */}
-         <div className="clay-card p-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Water Schedule</h2>
-              <p className="text-slate-800 font-bold text-lg">Every {result.suggestedWaterFrequency} days</p>
-            </div>
-            <div className="w-14 h-14 bg-blue-50 rounded-[20px] flex items-center justify-center shadow-inner">
-              <DropIcon className="w-7 h-7 text-blue-500" />
-            </div>
+         {/* Schedule Preview Grid */}
+         <div className="grid grid-cols-3 gap-4">
+             {/* Water */}
+             <div className="clay-card p-4 flex flex-col items-center justify-center text-center">
+                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+                   <DropIcon className="w-5 h-5 text-blue-500" />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Water</p>
+                <p className="text-sm font-bold text-slate-800">{result.suggestedWaterFrequency} Days</p>
+             </div>
+
+             {/* Mist */}
+             <div className="clay-card p-4 flex flex-col items-center justify-center text-center">
+                <div className="w-10 h-10 bg-cyan-50 rounded-full flex items-center justify-center mb-2">
+                   <SprayIcon className="w-5 h-5 text-cyan-500" />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Mist</p>
+                <p className="text-sm font-bold text-slate-800">
+                    {result.suggestedMistFrequency ? `${result.suggestedMistFrequency} Days` : 'None'}
+                </p>
+             </div>
+
+             {/* Fertilize */}
+             <div className="clay-card p-4 flex flex-col items-center justify-center text-center">
+                <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center mb-2">
+                   <SparklesIcon className="w-5 h-5 text-amber-500" />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Feed</p>
+                <p className="text-sm font-bold text-slate-800">
+                    {result.suggestedFertilizeFrequency ? `${result.suggestedFertilizeFrequency} Days` : 'None'}
+                </p>
+             </div>
          </div>
 
          <div className="pt-4">

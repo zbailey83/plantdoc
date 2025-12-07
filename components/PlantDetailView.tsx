@@ -1,48 +1,59 @@
 import React, { useState } from 'react';
 import { Plant, HealthStatus } from '../types';
-import { ArrowLeftIcon, DropIcon, CheckIcon, AlertIcon, EditIcon, CheckIcon as SaveIcon, XIcon } from './Icons';
+import { ArrowLeftIcon, DropIcon, CheckIcon, AlertIcon, EditIcon, CheckIcon as SaveIcon, XIcon, SprayIcon, SparklesIcon } from './Icons';
 
 interface PlantDetailViewProps {
   plant: Plant;
   onBack: () => void;
   onDelete: (id: string) => void;
   onWater: (id: string) => void;
+  onMist: (id: string) => void;
+  onFertilize: (id: string) => void;
   onUpdate: (updatedPlant: Plant) => void;
 }
 
-export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack, onDelete, onWater, onUpdate }) => {
+export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack, onDelete, onWater, onMist, onFertilize, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(plant.name);
-  const [editFrequency, setEditFrequency] = useState(plant.schedule.waterFrequencyDays.toString());
+  
+  // Frequency State
+  const [editWaterFreq, setEditWaterFreq] = useState(plant.schedule.waterFrequencyDays.toString());
+  const [editMistFreq, setEditMistFreq] = useState((plant.schedule.mistFrequencyDays || 0).toString());
+  const [editFertFreq, setEditFertFreq] = useState((plant.schedule.fertilizeFrequencyDays || 0).toString());
 
   const isHealthy = plant.status === HealthStatus.THRIVING;
-  
-  // Format dates
-  const nextWater = new Date(plant.schedule.nextWatering).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const lastWater = new Date(plant.schedule.lastWatered).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const acquired = new Date(plant.acquiredDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const handleSave = () => {
-    const freq = parseInt(editFrequency);
-    if (!editName.trim() || isNaN(freq) || freq < 1) {
-        alert("Please enter valid name and frequency (days).");
+    const wFreq = parseInt(editWaterFreq);
+    const mFreq = parseInt(editMistFreq);
+    const fFreq = parseInt(editFertFreq);
+
+    if (!editName.trim() || isNaN(wFreq) || wFreq < 1) {
+        alert("Please enter a valid name and watering frequency (min 1 day).");
         return;
     }
     
-    // Update plant logic
-    // We also need to recalculate next watering if frequency changed, but for simplicity let's keep next date unless we want to reschedule.
-    // Let's assume changing frequency keeps the anchor (last watered) but shifts the next date relative to last watered.
-    
-    const lastWateredDate = new Date(plant.schedule.lastWatered);
-    const newNextWatering = new Date(lastWateredDate.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+    // Recalculate next dates if frequencies changed (keeping last watered date anchor)
+    const calculateNextDate = (lastDateIso: string | undefined, freq: number) => {
+        if (!lastDateIso || freq <= 0) return undefined;
+        const last = new Date(lastDateIso);
+        return new Date(last.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+    };
 
     const updatedPlant: Plant = {
         ...plant,
         name: editName,
         schedule: {
             ...plant.schedule,
-            waterFrequencyDays: freq,
-            nextWatering: newNextWatering
+            waterFrequencyDays: wFreq,
+            nextWatering: calculateNextDate(plant.schedule.lastWatered, wFreq) || new Date().toISOString(),
+            
+            mistFrequencyDays: isNaN(mFreq) ? 0 : mFreq,
+            nextMisting: calculateNextDate(plant.schedule.lastMisted, mFreq),
+
+            fertilizeFrequencyDays: isNaN(fFreq) ? 0 : fFreq,
+            nextFertilizing: calculateNextDate(plant.schedule.lastFertilized, fFreq),
         }
     };
 
@@ -52,8 +63,72 @@ export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack,
 
   const cancelEdit = () => {
       setEditName(plant.name);
-      setEditFrequency(plant.schedule.waterFrequencyDays.toString());
+      setEditWaterFreq(plant.schedule.waterFrequencyDays.toString());
+      setEditMistFreq((plant.schedule.mistFrequencyDays || 0).toString());
+      setEditFertFreq((plant.schedule.fertilizeFrequencyDays || 0).toString());
       setIsEditing(false);
+  };
+
+  const CareRow = ({ 
+    icon: Icon, 
+    label, 
+    frequency, 
+    editValue, 
+    setEditValue, 
+    nextDate, 
+    colorClass,
+    bgClass,
+    onAction 
+  }: any) => {
+      const isDue = nextDate ? new Date(nextDate) <= new Date() : false;
+      const dateDisplay = nextDate 
+        ? new Date(nextDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+        : 'Not Scheduled';
+      const isActive = frequency > 0;
+
+      return (
+        <div className={`clay-card p-4 flex items-center justify-between mb-4 ${!isActive && !isEditing ? 'opacity-60' : ''}`}>
+            <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center ${bgClass} shadow-sm`}>
+                    <Icon className={`w-6 h-6 ${colorClass}`} />
+                </div>
+                <div>
+                    <p className="font-bold text-slate-800">{label}</p>
+                    {isEditing ? (
+                         <div className="flex items-center mt-1">
+                             <span className="text-xs font-bold text-slate-400 mr-2">Every</span>
+                             <input 
+                                type="number" 
+                                min="0"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="w-12 bg-white rounded border border-slate-200 text-center text-sm font-bold outline-none focus:border-emerald-500"
+                             />
+                             <span className="text-xs font-bold text-slate-400 ml-1">days</span>
+                         </div>
+                    ) : (
+                        <p className="text-xs font-bold text-slate-500">
+                           {isActive ? (isDue ? <span className="text-red-500">Due Today</span> : `Due ${dateDisplay}`) : 'Not Required'}
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {!isEditing && isActive && (
+                <button 
+                  onClick={onAction}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform ${isDue ? 'clay-btn-primary' : 'bg-slate-100'}`}
+                >
+                  <CheckIcon className={`w-5 h-5 ${isDue ? 'text-white' : 'text-slate-300'}`} />
+                </button>
+            )}
+            {isEditing && (
+                 <div className="text-xs text-slate-400 font-bold px-2 py-1 bg-slate-100 rounded">
+                     {parseInt(editValue) > 0 ? `${editValue}d` : 'Off'}
+                 </div>
+            )}
+        </div>
+      );
   };
 
   return (
@@ -111,36 +186,45 @@ export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack,
       {/* Actions & Info */}
       <div className="px-6 -mt-8 relative z-10 space-y-6">
         
-        {/* Quick Actions Card */}
-        <div className="clay-card p-6 flex justify-between items-center transition-all duration-300">
-            <div className="text-center">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Next Water</p>
-                <p className="text-xl font-bold text-slate-800">{nextWater}</p>
-            </div>
-            <div className="h-10 w-[1px] bg-slate-200"></div>
-            <div className="text-center">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Frequency</p>
-                {isEditing ? (
-                    <div className="flex items-center justify-center w-20 mx-auto border-b-2 border-slate-300">
-                        <input 
-                            type="number" 
-                            value={editFrequency}
-                            onChange={(e) => setEditFrequency(e.target.value)}
-                            className="w-12 bg-transparent text-xl font-bold text-slate-800 text-center outline-none"
-                        />
-                        <span className="text-sm text-slate-500 font-bold">d</span>
-                    </div>
-                ) : (
-                    <p className="text-xl font-bold text-slate-800">{plant.schedule.waterFrequencyDays} Days</p>
-                )}
-            </div>
-             <button 
-                  onClick={() => onWater(plant.id)}
-                  disabled={isEditing}
-                  className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform ${isEditing ? 'bg-slate-200 text-slate-400' : 'clay-btn-primary text-white'}`}
-                >
-                  <DropIcon className="w-6 h-6" />
-            </button>
+        {/* Care Schedule List */}
+        <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Care Schedule</h3>
+            
+            <CareRow 
+                icon={DropIcon}
+                label="Watering"
+                frequency={plant.schedule.waterFrequencyDays}
+                editValue={editWaterFreq}
+                setEditValue={setEditWaterFreq}
+                nextDate={plant.schedule.nextWatering}
+                colorClass="text-blue-500"
+                bgClass="bg-blue-50"
+                onAction={() => onWater(plant.id)}
+            />
+
+            <CareRow 
+                icon={SprayIcon}
+                label="Misting"
+                frequency={plant.schedule.mistFrequencyDays || 0}
+                editValue={editMistFreq}
+                setEditValue={setEditMistFreq}
+                nextDate={plant.schedule.nextMisting}
+                colorClass="text-cyan-500"
+                bgClass="bg-cyan-50"
+                onAction={() => onMist(plant.id)}
+            />
+
+            <CareRow 
+                icon={SparklesIcon}
+                label="Fertilizing"
+                frequency={plant.schedule.fertilizeFrequencyDays || 0}
+                editValue={editFertFreq}
+                setEditValue={setEditFertFreq}
+                nextDate={plant.schedule.nextFertilizing}
+                colorClass="text-amber-500"
+                bgClass="bg-amber-50"
+                onAction={() => onFertilize(plant.id)}
+            />
         </div>
 
         {isEditing && (
@@ -159,8 +243,8 @@ export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack,
                 <p className="text-slate-700 font-bold">{acquired}</p>
              </div>
              <div className="clay-card-sm p-4">
-                <p className="text-slate-400 text-xs font-bold uppercase mb-2">Last Watered</p>
-                <p className="text-slate-700 font-bold">{lastWater}</p>
+                <p className="text-slate-400 text-xs font-bold uppercase mb-2">Total Diagnosis</p>
+                <p className="text-slate-700 font-bold">{plant.diagnosisHistory.length} Checkups</p>
              </div>
         </div>
 
@@ -168,7 +252,6 @@ export const PlantDetailView: React.FC<PlantDetailViewProps> = ({ plant, onBack,
         <div className="clay-card p-6">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-700">Health History</h3>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-lg">{plant.diagnosisHistory.length} Checkups</span>
             </div>
             
             <div className="space-y-4">

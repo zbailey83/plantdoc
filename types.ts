@@ -8,8 +8,14 @@ export interface CareSchedule {
   waterFrequencyDays: number;
   lastWatered: string; // ISO Date string
   nextWatering: string; // ISO Date string
-  mistFrequencyDays?: number;
-  fertilizeFrequencyDays?: number;
+
+  mistFrequencyDays?: number; // 0 or undefined means never/not needed
+  lastMisted?: string;
+  nextMisting?: string;
+
+  fertilizeFrequencyDays?: number; // 0 or undefined means never/not needed
+  lastFertilized?: string;
+  nextFertilizing?: string;
 }
 
 export interface DiagnosisResult {
@@ -21,6 +27,8 @@ export interface DiagnosisResult {
   reasoning: string;
   carePlan: string[];
   suggestedWaterFrequency: number;
+  suggestedMistFrequency?: number;
+  suggestedFertilizeFrequency?: number;
 }
 
 export interface Plant {

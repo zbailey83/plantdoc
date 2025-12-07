@@ -43,9 +43,22 @@ export const diagnosePlantImage = async (base64Image: string): Promise<Diagnosis
         items: { type: Type.STRING },
         description: "Step-by-step recovery or maintenance instructions" 
       },
-      suggestedWaterFrequency: { type: Type.NUMBER, description: "Recommended watering frequency in days" }
+      suggestedWaterFrequency: { type: Type.NUMBER, description: "Recommended watering frequency in days" },
+      suggestedMistFrequency: { type: Type.NUMBER, description: "Recommended misting frequency in days (0 if not needed)" },
+      suggestedFertilizeFrequency: { type: Type.NUMBER, description: "Recommended fertilizing frequency in days (0 if not needed)" }
     },
-    required: ["plantName", "scientificName", "confidence", "healthStatus", "diagnosis", "reasoning", "carePlan", "suggestedWaterFrequency"]
+    required: [
+      "plantName", 
+      "scientificName", 
+      "confidence", 
+      "healthStatus", 
+      "diagnosis", 
+      "reasoning", 
+      "carePlan", 
+      "suggestedWaterFrequency",
+      "suggestedMistFrequency",
+      "suggestedFertilizeFrequency"
+    ]
   };
 
   const prompt = `
@@ -54,6 +67,7 @@ export const diagnosePlantImage = async (base64Image: string): Promise<Diagnosis
     Identify the species and diagnose any health issues. 
     If the plant is healthy, provide maintenance tips.
     Be encouraging but realistic.
+    Provide specific schedules for watering, misting, and fertilizing. If misting or fertilizing is not required for this species, set frequency to 0.
   `;
 
   try {
