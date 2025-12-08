@@ -1,15 +1,16 @@
 import React from 'react';
 import { Species } from '../types';
-import { ArrowLeftIcon, SunIcon, DropIcon, ThermometerIcon, WindIcon } from './Icons';
+import { ArrowLeftIcon, SunIcon, DropIcon, ThermometerIcon, WindIcon, PlusIcon } from './Icons';
 
 interface SpeciesDetailViewProps {
   species: Species;
   onBack: () => void;
+  onAdd: (species: Species) => void;
 }
 
-export const SpeciesDetailView: React.FC<SpeciesDetailViewProps> = ({ species, onBack }) => {
+export const SpeciesDetailView: React.FC<SpeciesDetailViewProps> = ({ species, onBack, onAdd }) => {
   return (
-    <div className="min-h-screen bg-[#ecfdf5] pb-24 relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#ecfdf5] pb-32 relative overflow-x-hidden">
        {/* Hero Image */}
       <div className="relative h-[40vh] w-full">
         <div className="absolute inset-0 rounded-b-[48px] overflow-hidden shadow-2xl z-0">
@@ -103,7 +104,16 @@ export const SpeciesDetailView: React.FC<SpeciesDetailViewProps> = ({ species, o
               ))}
            </ul>
         </div>
+      </div>
 
+      {/* Floating Add Button */}
+      <div className="fixed bottom-6 left-0 right-0 p-6 pt-0 bg-gradient-to-t from-[#ecfdf5] to-transparent z-20 pointer-events-none">
+          <button 
+            onClick={() => onAdd(species)}
+            className="w-full clay-btn-primary py-4 font-bold text-xl shadow-xl flex items-center justify-center gap-3 pointer-events-auto active:scale-95 transition-transform"
+          >
+            <PlusIcon className="w-6 h-6" /> Add to My Garden
+          </button>
       </div>
     </div>
   );

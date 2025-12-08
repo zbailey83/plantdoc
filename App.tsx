@@ -31,15 +31,23 @@ const App: React.FC = () => {
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
   const [diagnosisImage, setDiagnosisImage] = useState<string | null>(null);
 
-  // Load plants from local storage on mount
+  // Load plants from local storage on mount (Updated key for rebranding)
   useEffect(() => {
-    const saved = localStorage.getItem('plantDoc_garden');
-    if (saved) {
+    // Check old key first to migrate data
+    const oldSaved = localStorage.getItem('plantDoc_garden');
+    const newSaved = localStorage.getItem('verdant_garden');
+    
+    if (newSaved) {
       try {
-        setPlants(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse saved garden");
-      }
+        setPlants(JSON.parse(newSaved));
+      } catch (e) { console.error("Failed to parse"); }
+    } else if (oldSaved) {
+       // Migration
+       try {
+        const data = JSON.parse(oldSaved);
+        setPlants(data);
+        localStorage.setItem('verdant_garden', JSON.stringify(data));
+       } catch (e) { console.error("Failed migration"); }
     } else {
       // Seed data for empty state
       const seedData: Plant[] = [
@@ -88,7 +96,7 @@ const App: React.FC = () => {
 
   // Save plants whenever they change
   useEffect(() => {
-    localStorage.setItem('plantDoc_garden', JSON.stringify(plants));
+    localStorage.setItem('verdant_garden', JSON.stringify(plants));
   }, [plants]);
 
   const handleDiagnosisComplete = (result: DiagnosisResult, image: string) => {
@@ -110,6 +118,49 @@ const App: React.FC = () => {
   const handleDeletePlant = (id: string) => {
     setPlants(prev => prev.filter(p => p.id !== id));
     setSelectedPlantId(null);
+    setView('dashboard');
+  };
+
+  const handleAddSpecies = (species: Species) => {
+    const now = new Date();
+    
+    // Calculate initial next dates based on defaults
+    const waterFreq = species.suggestedWaterFrequency || 7;
+    const nextWatering = new Date(now.getTime() + waterFreq * 24 * 60 * 60 * 1000).toISOString();
+    
+    const mistFreq = species.suggestedMistFrequency || 0;
+    const nextMisting = mistFreq > 0 
+        ? new Date(now.getTime() + mistFreq * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+
+    const fertFreq = species.suggestedFertilizeFrequency || 0;
+    const nextFertilizing = fertFreq > 0
+        ? new Date(now.getTime() + fertFreq * 24 * 60 * 60 * 1000).toISOString()
+        : undefined;
+
+    const newPlant: Plant = {
+        id: Date.now().toString(),
+        name: species.commonName,
+        species: species.scientificName,
+        imageUrl: species.imageUrl,
+        acquiredDate: now.toISOString(),
+        status: HealthStatus.THRIVING, // Assume healthy when adding from DB
+        diagnosisHistory: [],
+        schedule: {
+            waterFrequencyDays: waterFreq,
+            lastWatered: now.toISOString(),
+            nextWatering: nextWatering,
+            mistFrequencyDays: mistFreq,
+            lastMisted: mistFreq > 0 ? now.toISOString() : undefined,
+            nextMisting: nextMisting,
+            fertilizeFrequencyDays: fertFreq,
+            lastFertilized: fertFreq > 0 ? now.toISOString() : undefined,
+            nextFertilizing: nextFertilizing
+        }
+    };
+    
+    setPlants(prev => [newPlant, ...prev]);
+    setSelectedSpecies(null);
     setView('dashboard');
   };
 
@@ -182,7 +233,13 @@ const App: React.FC = () => {
   // 4. Database View (Search)
   if (view === 'database') {
       if (selectedSpecies) {
-          return <SpeciesDetailView species={selectedSpecies} onBack={() => setSelectedSpecies(null)} />;
+          return (
+            <SpeciesDetailView 
+                species={selectedSpecies} 
+                onBack={() => setSelectedSpecies(null)}
+                onAdd={handleAddSpecies}
+            />
+          );
       }
       return (
         <PlantDatabaseView 
@@ -221,8 +278,8 @@ const App: React.FC = () => {
       <header className="px-6 pt-12 pb-6">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">My Garden</h1>
-            <p className="text-slate-500 font-medium mt-1">Hello, Planter 🌱</p>
+            <h1 className="text-3xl font-bold text-[#064E3B] tracking-tight">Verdant</h1>
+            <p className="text-[#059669] font-medium mt-1">Grow with confidence.</p>
           </div>
           <button 
             onClick={() => setShowSettings(true)}

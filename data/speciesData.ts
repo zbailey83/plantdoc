@@ -13,7 +13,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '65°F - 85°F (18°C - 30°C)',
       humidity: 'Normal to high humidity preferred.'
     },
-    commonIssues: ['Yellowing leaves (overwatering)', 'Brown tips (low humidity)', 'Leggy growth (low light)']
+    commonIssues: ['Yellowing leaves (overwatering)', 'Brown tips (low humidity)', 'Leggy growth (low light)'],
+    suggestedWaterFrequency: 10,
+    suggestedMistFrequency: 3,
+    suggestedFertilizeFrequency: 30
   },
   {
     id: 'snake-plant',
@@ -27,7 +30,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '55°F - 85°F (13°C - 30°C)',
       humidity: 'Low to normal humidity.'
     },
-    commonIssues: ['Root rot (overwatering)', 'Mushy leaves (cold damage)']
+    commonIssues: ['Root rot (overwatering)', 'Mushy leaves (cold damage)'],
+    suggestedWaterFrequency: 14,
+    suggestedMistFrequency: 0,
+    suggestedFertilizeFrequency: 60
   },
   {
     id: 'fiddle-leaf-fig',
@@ -41,7 +47,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '60°F - 75°F (15°C - 24°C)',
       humidity: 'High humidity is essential.'
     },
-    commonIssues: ['Dropping leaves (drafts/dryness)', 'Brown spots (root rot)']
+    commonIssues: ['Dropping leaves (drafts/dryness)', 'Brown spots (root rot)'],
+    suggestedWaterFrequency: 7,
+    suggestedMistFrequency: 2,
+    suggestedFertilizeFrequency: 30
   },
   {
     id: 'pothos',
@@ -55,7 +64,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '60°F - 85°F (15°C - 30°C)',
       humidity: 'Any humidity level.'
     },
-    commonIssues: ['Yellow leaves (overwatering)', 'Loss of variegation (low light)']
+    commonIssues: ['Yellow leaves (overwatering)', 'Loss of variegation (low light)'],
+    suggestedWaterFrequency: 10,
+    suggestedMistFrequency: 7,
+    suggestedFertilizeFrequency: 30
   },
   {
     id: 'zz-plant',
@@ -69,7 +81,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '60°F - 75°F (15°C - 24°C)',
       humidity: 'Low to average humidity.'
     },
-    commonIssues: ['Yellowing lower leaves (overwatering)', 'Wrinkled stems (severe underwatering)']
+    commonIssues: ['Yellowing lower leaves (overwatering)', 'Wrinkled stems (severe underwatering)'],
+    suggestedWaterFrequency: 14,
+    suggestedMistFrequency: 0,
+    suggestedFertilizeFrequency: 90
   },
   {
     id: 'peace-lily',
@@ -83,7 +98,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '65°F - 80°F (18°C - 26°C)',
       humidity: 'High humidity preferred.'
     },
-    commonIssues: ['Brown tips (tap water chemicals)', 'Green flowers (low light)']
+    commonIssues: ['Brown tips (tap water chemicals)', 'Green flowers (low light)'],
+    suggestedWaterFrequency: 7,
+    suggestedMistFrequency: 2,
+    suggestedFertilizeFrequency: 45
   },
   {
     id: 'spider-plant',
@@ -97,7 +115,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '55°F - 80°F (13°C - 27°C)',
       humidity: 'Average humidity.'
     },
-    commonIssues: ['Brown tips (fluoride in water)', 'Fading stripes (low light)']
+    commonIssues: ['Brown tips (fluoride in water)', 'Fading stripes (low light)'],
+    suggestedWaterFrequency: 7,
+    suggestedMistFrequency: 3,
+    suggestedFertilizeFrequency: 30
   },
   {
     id: 'aloe-vera',
@@ -111,7 +132,10 @@ export const SPECIES_DB: Species[] = [
       temperature: '55°F - 80°F (13°C - 27°C)',
       humidity: 'Low humidity.'
     },
-    commonIssues: ['Mushy stems (rot)', 'Flat leaves (insufficient light)']
+    commonIssues: ['Mushy stems (rot)', 'Flat leaves (insufficient light)'],
+    suggestedWaterFrequency: 21,
+    suggestedMistFrequency: 0,
+    suggestedFertilizeFrequency: 60
   },
   {
     id: 'rubber-plant',
@@ -125,6 +149,9 @@ export const SPECIES_DB: Species[] = [
       temperature: '60°F - 75°F (15°C - 24°C)',
       humidity: 'Normal to high humidity.'
     },
-    commonIssues: ['Dropping lower leaves (low light)', 'Dusty leaves (needs wiping)']
+    commonIssues: ['Dropping lower leaves (low light)', 'Dusty leaves (needs wiping)'],
+    suggestedWaterFrequency: 10,
+    suggestedMistFrequency: 3,
+    suggestedFertilizeFrequency: 30
   }
 ];

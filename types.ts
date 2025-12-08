@@ -55,6 +55,10 @@ export interface Species {
     humidity: string;
   };
   commonIssues: string[];
+  // Numeric suggestions for pre-filling schedule
+  suggestedWaterFrequency?: number;
+  suggestedMistFrequency?: number;
+  suggestedFertilizeFrequency?: number;
 }
 
 export type ViewState = 'dashboard' | 'camera' | 'plant-detail' | 'expert' | 'premium' | 'database';
