@@ -12,12 +12,14 @@ import { PlantDatabaseView } from './components/PlantDatabaseView';
 import { SpeciesDetailView } from './components/SpeciesDetailView';
 import { UserIcon, PlusIcon, DropIcon, LeafIcon } from './components/Icons';
 
-// Mock weather data
-const MOCK_WEATHER = {
-  temp: 72,
-  condition: "Sunny",
-  humidity: 45
-};
+interface WeatherData {
+  temp: number;
+  condition: string;
+  humidity: number;
+  city: string;
+  date: string;
+  day: string;
+}
 
 const App: React.FC = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -30,6 +32,16 @@ const App: React.FC = () => {
   // State for the diagnosis flow
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
   const [diagnosisImage, setDiagnosisImage] = useState<string | null>(null);
+
+  // Weather State
+  const [weather, setWeather] = useState<WeatherData>({
+    temp: 72,
+    condition: "Sunny",
+    humidity: 45,
+    city: "My Garden",
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
+  });
 
   // Load plants from local storage on mount (Updated key for rebranding)
   useEffect(() => {
@@ -98,6 +110,57 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('verdant_garden', JSON.stringify(plants));
   }, [plants]);
+
+  // Weather Fetching
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        
+        try {
+          // 1. Fetch Weather Data (Open-Meteo - Free, No Key)
+          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&temperature_unit=fahrenheit`);
+          const weatherData = await weatherRes.json();
+          
+          // Map WMO codes to conditions
+          const getCondition = (code: number) => {
+             if (code === 0) return "Sunny";
+             if (code >= 1 && code <= 3) return "Cloudy";
+             if (code >= 45 && code <= 48) return "Foggy";
+             if (code >= 51 && code <= 67) return "Rainy";
+             if (code >= 71 && code <= 77) return "Snowy";
+             if (code >= 80 && code <= 82) return "Showers";
+             if (code >= 95) return "Stormy";
+             return "Clear";
+          };
+
+          // 2. Fetch City Name (Reverse Geocoding - BigDataCloud Free API)
+          // Using a free endpoint to avoid keys, fallback to generic if fails
+          let city = "Local Garden";
+          try {
+             const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+             const geoData = await geoRes.json();
+             if (geoData.city || geoData.locality) {
+                city = geoData.city || geoData.locality;
+             }
+          } catch (e) { console.warn("Geo fetch failed", e); }
+
+          setWeather({
+             temp: Math.round(weatherData.current.temperature_2m),
+             condition: getCondition(weatherData.current.weather_code),
+             humidity: weatherData.current.relative_humidity_2m,
+             city: city,
+             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+             day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
+          });
+
+        } catch (error) {
+           console.error("Weather update failed", error);
+        }
+      });
+    }
+  }, []);
 
   const handleDiagnosisComplete = (result: DiagnosisResult, image: string) => {
     setDiagnosisResult(result);
@@ -297,16 +360,25 @@ const App: React.FC = () => {
            
            <div className="flex justify-between items-end relative z-10">
              <div>
-               <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Local Forecast</p>
+               {/* Location & Date */}
+               <div className="mb-4">
+                 <p className="text-slate-800 text-lg font-bold flex items-center gap-1">
+                   {weather.city}
+                 </p>
+                 <p className="text-emerald-600 text-sm font-bold opacity-80 uppercase tracking-wide">
+                   {weather.day}, {weather.date}
+                 </p>
+               </div>
+
                <div className="flex items-start gap-1">
-                 <span className="text-5xl font-bold text-slate-800">{MOCK_WEATHER.temp}°</span>
-                 <span className="text-emerald-500 font-bold mt-2">{MOCK_WEATHER.condition}</span>
+                 <span className="text-5xl font-bold text-slate-800">{weather.temp}°</span>
+                 <span className="text-emerald-500 font-bold mt-2">{weather.condition}</span>
                </div>
              </div>
              <div className="text-right">
                <div className="clay-inset px-4 py-2 rounded-xl">
                  <p className="text-xs text-slate-400 font-bold uppercase mb-1">Humidity</p>
-                 <p className="text-xl font-bold text-slate-700">{MOCK_WEATHER.humidity}%</p>
+                 <p className="text-xl font-bold text-slate-700">{weather.humidity}%</p>
                </div>
              </div>
            </div>

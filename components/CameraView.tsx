@@ -13,6 +13,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,40 +23,55 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
 
   // Initialize Camera
   useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, [facingMode]);
+    let mounted = true;
 
-  const startCamera = async () => {
-    if (preview) return; // Don't start if we have a captured image
-    
-    stopCamera();
-    try {
-      const constraints = {
-        video: { 
-          facingMode: facingMode,
-          // width/height ideal for mobile portrait often differs, keeping generic
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
+    const initCamera = async () => {
+      if (preview) return; // Don't start if we have a captured image
       
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-            setIsStreaming(true);
-            setError(null);
-            videoRef.current?.play().catch(e => console.error("Play error:", e));
+      setIsLoading(true);
+      stopCamera();
+
+      try {
+        const constraints = {
+          video: { 
+            facingMode: facingMode,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
         };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (!mounted) {
+           stream.getTracks().forEach(track => track.stop());
+           return;
+        }
+
+        streamRef.current = stream;
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          // Important: Explicitly play to ensure mobile browsers start the stream
+          await videoRef.current.play();
+          setIsStreaming(true);
+          setError(null);
+        }
+      } catch (err) {
+        console.warn("Camera access failed or denied:", err);
+        setIsStreaming(false);
+        // If error occurs, we are no longer loading, so fallback UI can show
+      } finally {
+        if (mounted) setIsLoading(false);
       }
-    } catch (err) {
-      console.warn("Camera access failed or denied:", err);
-      setIsStreaming(false);
-      // Don't show error immediately, UI will show fallback upload state naturally
-    }
-  };
+    };
+
+    initCamera();
+
+    return () => {
+      mounted = false;
+      stopCamera();
+    };
+  }, [facingMode, preview]);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -125,7 +141,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
   const handleRetake = () => {
     setPreview(null);
     setError(null);
-    startCamera();
+    // removing preview triggers useEffect to restart camera
   };
 
   return (
@@ -141,7 +157,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
         <span className="text-white font-bold tracking-widest text-sm uppercase bg-black/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
           AI Diagnostic
         </span>
-        <button onClick={toggleCamera} disabled={!!preview || !isStreaming} className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform disabled:opacity-0">
+        <button onClick={toggleCamera} disabled={!!preview || isLoading} className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 active:scale-95 transition-transform disabled:opacity-0">
           <SwitchCameraIcon className="w-5 h-5" />
         </button>
       </div>
@@ -163,8 +179,15 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
           <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-cover z-20" />
         )}
 
-        {/* State: No Camera (Fallback) - Only shown if not streaming and no preview */}
-        {!isStreaming && !preview && (
+        {/* State: Loading Spinner */}
+        {isLoading && !preview && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+             <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+
+        {/* State: No Camera (Fallback) - Only shown if failed, not loading, and no preview */}
+        {!isStreaming && !isLoading && !preview && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-900 z-10">
             <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mb-6">
                <CameraIcon className="w-10 h-10 text-gray-500" />
@@ -274,7 +297,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
               {/* Shutter Button */}
               <button 
                  onClick={capturePhoto}
-                 disabled={!isStreaming}
+                 disabled={!isStreaming || isLoading}
                  className="w-20 h-20 rounded-full border-4 border-[#32CD32] p-1 shadow-lg active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
                  <div className="w-full h-full bg-[#32CD32] rounded-full"></div>
