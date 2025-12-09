@@ -44,8 +44,11 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setIsStreaming(true);
-        setError(null);
+        videoRef.current.onloadedmetadata = () => {
+            setIsStreaming(true);
+            setError(null);
+            videoRef.current?.play().catch(e => console.error("Play error:", e));
+        };
       }
     } catch (err) {
       console.warn("Camera access failed or denied:", err);
@@ -145,21 +148,24 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
 
       {/* Main Viewport */}
       <div className="flex-1 relative bg-gray-900 overflow-hidden">
-        {/* State: Preview Image */}
-        {preview ? (
-          <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-        ) : isStreaming ? (
-          // State: Live Video
-          <video 
+        
+        {/* Video Layer - Always rendered to ensure ref exists */}
+        <video 
             ref={videoRef} 
             autoPlay 
             playsInline 
             muted 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          // State: No Camera (Fallback)
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-900">
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isStreaming && !preview ? 'opacity-100' : 'opacity-0'}`}
+        />
+
+        {/* State: Preview Image */}
+        {preview && (
+          <img src={preview} alt="Preview" className="absolute inset-0 w-full h-full object-cover z-20" />
+        )}
+
+        {/* State: No Camera (Fallback) - Only shown if not streaming and no preview */}
+        {!isStreaming && !preview && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-900 z-10">
             <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mb-6">
                <CameraIcon className="w-10 h-10 text-gray-500" />
             </div>
