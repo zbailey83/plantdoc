@@ -11,6 +11,9 @@ import { SettingsView } from './components/SettingsView';
 import { PlantDatabaseView } from './components/PlantDatabaseView';
 import { SpeciesDetailView } from './components/SpeciesDetailView';
 import { UserIcon, PlusIcon, DropIcon, LeafIcon } from './components/Icons';
+import { useAuth } from './contexts/AuthContext';
+import { LoginView } from './components/LoginView';
+import { supabase } from './services/supabaseClient';
 
 interface WeatherData {
   temp: number;
@@ -22,10 +25,13 @@ interface WeatherData {
 }
 
 const App: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<ViewState>('dashboard');
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [loadingPlants, setLoadingPlants] = useState(false);
+  
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
   const [selectedSpecies, setSelectedSpecies] = useState<Species | null>(null);
   
@@ -43,73 +49,43 @@ const App: React.FC = () => {
     day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
   });
 
-  // Load plants from local storage on mount (Updated key for rebranding)
+  // Fetch Plants from Supabase
   useEffect(() => {
-    // Check old key first to migrate data
-    const oldSaved = localStorage.getItem('plantDoc_garden');
-    const newSaved = localStorage.getItem('verdant_garden');
-    
-    if (newSaved) {
-      try {
-        setPlants(JSON.parse(newSaved));
-      } catch (e) { console.error("Failed to parse"); }
-    } else if (oldSaved) {
-       // Migration
-       try {
-        const data = JSON.parse(oldSaved);
-        setPlants(data);
-        localStorage.setItem('verdant_garden', JSON.stringify(data));
-       } catch (e) { console.error("Failed migration"); }
-    } else {
-      // Seed data for empty state
-      const seedData: Plant[] = [
-        {
-          id: '1',
-          name: 'Monstera',
-          species: 'Monstera deliciosa',
-          imageUrl: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&q=80&w=800',
-          acquiredDate: new Date().toISOString(),
-          status: HealthStatus.THRIVING,
-          schedule: {
-            waterFrequencyDays: 7,
-            lastWatered: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago (Overdue)
-            nextWatering: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            mistFrequencyDays: 3,
-            lastMisted: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-            nextMisting: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            fertilizeFrequencyDays: 30,
-            lastFertilized: new Date().toISOString(),
-            nextFertilizing: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          diagnosisHistory: []
-        },
-        {
-          id: '2',
-          name: 'Snake Plant',
-          species: 'Sansevieria trifasciata',
-          imageUrl: 'https://images.unsplash.com/photo-1593482886875-6647f38fa83f?auto=format&fit=crop&q=80&w=800',
-          acquiredDate: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(),
-          status: HealthStatus.THRIVING,
-          schedule: {
-            waterFrequencyDays: 14,
-            lastWatered: new Date().toISOString(),
-            nextWatering: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString(),
-            mistFrequencyDays: 0, // Not needed
-            fertilizeFrequencyDays: 60,
-            lastFertilized: new Date(Date.now() - 61 * 24 * 60 * 60 * 1000).toISOString(),
-            nextFertilizing: new Date().toISOString(),
-          },
-          diagnosisHistory: []
-        }
-      ];
-      setPlants(seedData);
-    }
-  }, []);
+    if (user && !showSplash) {
+      const fetchPlants = async () => {
+        setLoadingPlants(true);
+        try {
+          const { data, error } = await supabase
+            .from('plants')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-  // Save plants whenever they change
-  useEffect(() => {
-    localStorage.setItem('verdant_garden', JSON.stringify(plants));
-  }, [plants]);
+          if (error) throw error;
+
+          // Transform snake_case DB fields to camelCase TS interface if needed
+          // Since we stored complex objects (schedule, diagnosisHistory) as JSONB, they come back as objects
+          const loadedPlants: Plant[] = (data || []).map((p: any) => ({
+             id: p.id,
+             name: p.name,
+             species: p.species,
+             imageUrl: p.image_url,
+             acquiredDate: p.acquired_date,
+             status: p.status as HealthStatus,
+             schedule: p.schedule,
+             diagnosisHistory: p.diagnosis_history || []
+          }));
+
+          setPlants(loadedPlants);
+        } catch (error) {
+          console.error('Error fetching plants:', error);
+        } finally {
+          setLoadingPlants(false);
+        }
+      };
+
+      fetchPlants();
+    }
+  }, [user, showSplash]);
 
   // Weather Fetching
   useEffect(() => {
@@ -136,7 +112,6 @@ const App: React.FC = () => {
           };
 
           // 2. Fetch City Name (Reverse Geocoding - BigDataCloud Free API)
-          // Using a free endpoint to avoid keys, fallback to generic if fails
           let city = "Local Garden";
           try {
              const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
@@ -167,27 +142,72 @@ const App: React.FC = () => {
     setDiagnosisImage(image);
   };
 
-  const handleSavePlant = (newPlant: Plant) => {
+  const handleSavePlant = async (newPlant: Plant) => {
+    if (!user) return;
+    
+    // Optimistic Update
     setPlants(prev => [newPlant, ...prev]);
     setDiagnosisResult(null);
     setDiagnosisImage(null);
     setView('dashboard');
+
+    try {
+        const { data, error } = await supabase.from('plants').insert({
+            user_id: user.id,
+            name: newPlant.name,
+            species: newPlant.species,
+            image_url: newPlant.imageUrl,
+            acquired_date: newPlant.acquiredDate,
+            status: newPlant.status,
+            schedule: newPlant.schedule,
+            diagnosis_history: newPlant.diagnosisHistory
+        }).select().single();
+
+        if (error) throw error;
+        
+        // Update with real ID from DB
+        setPlants(prev => prev.map(p => p.id === newPlant.id ? { ...p, id: data.id } : p));
+
+    } catch (err) {
+        console.error("Error saving plant:", err);
+        // Revert on failure
+        setPlants(prev => prev.filter(p => p.id !== newPlant.id));
+        alert("Failed to save plant to cloud.");
+    }
   };
 
-  const handleUpdatePlant = (updatedPlant: Plant) => {
+  const handleUpdatePlant = async (updatedPlant: Plant) => {
       setPlants(prev => prev.map(p => p.id === updatedPlant.id ? updatedPlant : p));
+      
+      try {
+          const { error } = await supabase.from('plants').update({
+            name: updatedPlant.name,
+            schedule: updatedPlant.schedule
+            // We usually don't update image/species after creation in this simple flow, but could be added
+          }).eq('id', updatedPlant.id);
+
+          if (error) throw error;
+      } catch (err) {
+          console.error("Error updating plant:", err);
+      }
   };
 
-  const handleDeletePlant = (id: string) => {
+  const handleDeletePlant = async (id: string) => {
     setPlants(prev => prev.filter(p => p.id !== id));
     setSelectedPlantId(null);
     setView('dashboard');
+
+    try {
+        const { error } = await supabase.from('plants').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error("Error deleting plant:", err);
+    }
   };
 
-  const handleAddSpecies = (species: Species) => {
+  const handleAddSpecies = async (species: Species) => {
     const now = new Date();
     
-    // Calculate initial next dates based on defaults
     const waterFreq = species.suggestedWaterFrequency || 7;
     const nextWatering = new Date(now.getTime() + waterFreq * 24 * 60 * 60 * 1000).toISOString();
     
@@ -202,12 +222,12 @@ const App: React.FC = () => {
         : undefined;
 
     const newPlant: Plant = {
-        id: Date.now().toString(),
+        id: Date.now().toString(), // Temp ID
         name: species.commonName,
         species: species.scientificName,
         imageUrl: species.imageUrl,
         acquiredDate: now.toISOString(),
-        status: HealthStatus.THRIVING, // Assume healthy when adding from DB
+        status: HealthStatus.THRIVING,
         diagnosisHistory: [],
         schedule: {
             waterFrequencyDays: waterFreq,
@@ -222,42 +242,68 @@ const App: React.FC = () => {
         }
     };
     
-    setPlants(prev => [newPlant, ...prev]);
+    // Use the save handler to persist to DB
+    handleSavePlant(newPlant);
     setSelectedSpecies(null);
     setView('dashboard');
   };
 
   // Generic handler for marking care tasks as done
-  const updateScheduleDate = (id: string, type: 'water' | 'mist' | 'fertilize') => {
-      setPlants(prev => prev.map(p => {
-        if (p.id !== id) return p;
+  const updateScheduleDate = async (id: string, type: 'water' | 'mist' | 'fertilize') => {
+      const plant = plants.find(p => p.id === id);
+      if (!plant) return;
 
-        const now = new Date();
-        const schedule = { ...p.schedule };
-        
-        if (type === 'water') {
-            const freq = schedule.waterFrequencyDays;
-            schedule.lastWatered = now.toISOString();
-            schedule.nextWatering = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
-        } else if (type === 'mist') {
-            const freq = schedule.mistFrequencyDays || 0;
-            if (freq > 0) {
-                schedule.lastMisted = now.toISOString();
-                schedule.nextMisting = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
-            }
-        } else if (type === 'fertilize') {
-            const freq = schedule.fertilizeFrequencyDays || 0;
-            if (freq > 0) {
-                schedule.lastFertilized = now.toISOString();
-                schedule.nextFertilizing = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
-            }
-        }
+      const now = new Date();
+      const schedule = { ...plant.schedule };
+      
+      if (type === 'water') {
+          const freq = schedule.waterFrequencyDays;
+          schedule.lastWatered = now.toISOString();
+          schedule.nextWatering = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+      } else if (type === 'mist') {
+          const freq = schedule.mistFrequencyDays || 0;
+          if (freq > 0) {
+              schedule.lastMisted = now.toISOString();
+              schedule.nextMisting = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+          }
+      } else if (type === 'fertilize') {
+          const freq = schedule.fertilizeFrequencyDays || 0;
+          if (freq > 0) {
+              schedule.lastFertilized = now.toISOString();
+              schedule.nextFertilizing = new Date(now.getTime() + freq * 24 * 60 * 60 * 1000).toISOString();
+          }
+      }
 
-        return { ...p, schedule };
-      }));
+      // Optimistic update
+      const updatedPlant = { ...plant, schedule };
+      setPlants(prev => prev.map(p => p.id === id ? updatedPlant : p));
+
+      // Persist
+      try {
+          const { error } = await supabase
+            .from('plants')
+            .update({ schedule: schedule })
+            .eq('id', id);
+          if (error) throw error;
+      } catch (err) {
+          console.error("Error updating schedule:", err);
+      }
   };
 
   // --- Views Rendering ---
+
+  if (authLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#ecfdf5]">
+             <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      );
+  }
+
+  // Auth Guard
+  if (!user) {
+      return <LoginView />;
+  }
 
   if (showSplash) {
       return <SplashScreen onComplete={() => setShowSplash(false)} />;
@@ -389,10 +435,18 @@ const App: React.FC = () => {
       <main className="px-6">
         <div className="flex justify-between items-center mb-6 pl-1">
           <h2 className="text-xl font-bold text-slate-800">Your Plants</h2>
-          <span className="clay-inset px-3 py-1 text-xs font-bold text-slate-500">{plants.length} Total</span>
+          <span className="clay-inset px-3 py-1 text-xs font-bold text-slate-500">
+             {loadingPlants ? '...' : `${plants.length} Total`}
+          </span>
         </div>
 
-        {plants.length === 0 ? (
+        {loadingPlants ? (
+           <div className="flex flex-col gap-4">
+               {[1, 2].map(i => (
+                   <div key={i} className="clay-card h-32 animate-pulse opacity-50"></div>
+               ))}
+           </div>
+        ) : plants.length === 0 ? (
           <div className="clay-card p-10 text-center">
             <div className="w-20 h-20 clay-inset rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
               <LeafIcon className="w-10 h-10" />

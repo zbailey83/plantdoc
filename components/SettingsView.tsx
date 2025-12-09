@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { XIcon, UserIcon, CheckIcon } from './Icons';
+import { XIcon, UserIcon } from './Icons';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SettingsViewProps {
   onClose: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onClose }) => {
+  const { user, signOut } = useAuth();
   const [notifications, setNotifications] = useState(true);
   const [seasonalTips, setSeasonalTips] = useState(true);
-  const [name, setName] = useState("Planter");
 
   const Toggle = ({ active, onToggle }: { active: boolean; onToggle: () => void }) => (
     <button 
@@ -50,14 +51,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose }) => {
           <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-white shadow-inner flex items-center justify-center text-emerald-600">
              <UserIcon className="w-8 h-8" />
           </div>
-          <div className="flex-1">
-            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Display Name</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-slate-200 focus:border-emerald-500 outline-none text-xl font-bold text-slate-700 py-1 transition-colors"
-            />
+          <div className="flex-1 overflow-hidden">
+            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Signed in as</label>
+            <p className="text-lg font-bold text-slate-700 truncate">{user?.email}</p>
           </div>
         </div>
 
@@ -89,7 +85,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose }) => {
         </div>
 
         <div className="mt-8 text-center">
-            <button onClick={onClose} className="text-slate-400 font-bold text-sm">
+            <button 
+                onClick={() => {
+                    signOut();
+                    onClose();
+                }} 
+                className="text-red-400 font-bold text-sm hover:text-red-600 transition-colors"
+            >
                 Log Out
             </button>
         </div>
