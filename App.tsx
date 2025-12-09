@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, Plant, DiagnosisResult, HealthStatus, Species } from './types';
 import { Navigation } from './components/Navigation';
@@ -7,6 +8,7 @@ import { DiagnosisResultView } from './components/DiagnosisResultView';
 import { PlantDetailView } from './components/PlantDetailView';
 import { ExpertView } from './components/ExpertView';
 import { SplashScreen } from './components/SplashScreen';
+import { FeatureLoader } from './components/FeatureLoader';
 import { SettingsView } from './components/SettingsView';
 import { PlantDatabaseView } from './components/PlantDatabaseView';
 import { SpeciesDetailView } from './components/SpeciesDetailView';
@@ -27,6 +29,7 @@ interface WeatherData {
 const App: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
+  const [showFeatureLoader, setShowFeatureLoader] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState<ViewState>('dashboard');
   const [plants, setPlants] = useState<Plant[]>([]);
@@ -49,9 +52,18 @@ const App: React.FC = () => {
     day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
   });
 
+  // Handle splash and initial loader sequence
+  useEffect(() => {
+    // If user is already authenticated when app loads, splash handles the transition
+    if (user && !authLoading) {
+      // Trigger feature loader if we haven't seen it in this session (simplified as always showing on auth load for this demo)
+      // For a real app, you might check a session flag
+    }
+  }, [user, authLoading]);
+
   // Fetch Plants from Supabase
   useEffect(() => {
-    if (user && !showSplash) {
+    if (user && !showSplash && !showFeatureLoader) {
       const fetchPlants = async () => {
         setLoadingPlants(true);
         try {
@@ -62,8 +74,6 @@ const App: React.FC = () => {
 
           if (error) throw error;
 
-          // Transform snake_case DB fields to camelCase TS interface if needed
-          // Since we stored complex objects (schedule, diagnosisHistory) as JSONB, they come back as objects
           const loadedPlants: Plant[] = (data || []).map((p: any) => ({
              id: p.id,
              name: p.name,
@@ -85,7 +95,7 @@ const App: React.FC = () => {
 
       fetchPlants();
     }
-  }, [user, showSplash]);
+  }, [user, showSplash, showFeatureLoader]);
 
   // Weather Fetching
   useEffect(() => {
@@ -95,11 +105,9 @@ const App: React.FC = () => {
         const lon = position.coords.longitude;
         
         try {
-          // 1. Fetch Weather Data (Open-Meteo - Free, No Key)
           const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&temperature_unit=fahrenheit`);
           const weatherData = await weatherRes.json();
           
-          // Map WMO codes to conditions
           const getCondition = (code: number) => {
              if (code === 0) return "Sunny";
              if (code >= 1 && code <= 3) return "Cloudy";
@@ -111,7 +119,6 @@ const App: React.FC = () => {
              return "Clear";
           };
 
-          // 2. Fetch City Name (Reverse Geocoding - BigDataCloud Free API)
           let city = "Local Garden";
           try {
              const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
@@ -145,7 +152,6 @@ const App: React.FC = () => {
   const handleSavePlant = async (newPlant: Plant) => {
     if (!user) return;
     
-    // Optimistic Update
     setPlants(prev => [newPlant, ...prev]);
     setDiagnosisResult(null);
     setDiagnosisImage(null);
@@ -164,13 +170,9 @@ const App: React.FC = () => {
         }).select().single();
 
         if (error) throw error;
-        
-        // Update with real ID from DB
         setPlants(prev => prev.map(p => p.id === newPlant.id ? { ...p, id: data.id } : p));
-
     } catch (err) {
         console.error("Error saving plant:", err);
-        // Revert on failure
         setPlants(prev => prev.filter(p => p.id !== newPlant.id));
         alert("Failed to save plant to cloud.");
     }
@@ -183,9 +185,7 @@ const App: React.FC = () => {
           const { error } = await supabase.from('plants').update({
             name: updatedPlant.name,
             schedule: updatedPlant.schedule
-            // We usually don't update image/species after creation in this simple flow, but could be added
           }).eq('id', updatedPlant.id);
-
           if (error) throw error;
       } catch (err) {
           console.error("Error updating plant:", err);
@@ -196,7 +196,6 @@ const App: React.FC = () => {
     setPlants(prev => prev.filter(p => p.id !== id));
     setSelectedPlantId(null);
     setView('dashboard');
-
     try {
         const { error } = await supabase.from('plants').delete().eq('id', id);
         if (error) throw error;
@@ -207,7 +206,6 @@ const App: React.FC = () => {
 
   const handleAddSpecies = async (species: Species) => {
     const now = new Date();
-    
     const waterFreq = species.suggestedWaterFrequency || 7;
     const nextWatering = new Date(now.getTime() + waterFreq * 24 * 60 * 60 * 1000).toISOString();
     
@@ -222,7 +220,7 @@ const App: React.FC = () => {
         : undefined;
 
     const newPlant: Plant = {
-        id: Date.now().toString(), // Temp ID
+        id: Date.now().toString(),
         name: species.commonName,
         species: species.scientificName,
         imageUrl: species.imageUrl,
@@ -242,13 +240,11 @@ const App: React.FC = () => {
         }
     };
     
-    // Use the save handler to persist to DB
     handleSavePlant(newPlant);
     setSelectedSpecies(null);
     setView('dashboard');
   };
 
-  // Generic handler for marking care tasks as done
   const updateScheduleDate = async (id: string, type: 'water' | 'mist' | 'fertilize') => {
       const plant = plants.find(p => p.id === id);
       if (!plant) return;
@@ -274,23 +270,16 @@ const App: React.FC = () => {
           }
       }
 
-      // Optimistic update
       const updatedPlant = { ...plant, schedule };
       setPlants(prev => prev.map(p => p.id === id ? updatedPlant : p));
 
-      // Persist
       try {
-          const { error } = await supabase
-            .from('plants')
-            .update({ schedule: schedule })
-            .eq('id', id);
+          const { error } = await supabase.from('plants').update({ schedule: schedule }).eq('id', id);
           if (error) throw error;
       } catch (err) {
           console.error("Error updating schedule:", err);
       }
   };
-
-  // --- Views Rendering ---
 
   if (authLoading) {
       return (
@@ -300,16 +289,28 @@ const App: React.FC = () => {
       );
   }
 
-  // Auth Guard
+  // Not Logged In
   if (!user) {
       return <LoginView />;
   }
 
+  // Logged In Flow: Splash -> FeatureLoader -> Dashboard
+
+  // 1. Initial Splash Screen (Logo)
   if (showSplash) {
-      return <SplashScreen onComplete={() => setShowSplash(false)} />;
+      return <SplashScreen onComplete={() => {
+        setShowSplash(false);
+        // Start Feature Loader sequence after Splash
+        setShowFeatureLoader(true);
+      }} />;
   }
 
-  // 1. Diagnosis Result View (Overlay)
+  // 2. Feature Loader (Pseudo-loading)
+  if (showFeatureLoader) {
+      return <FeatureLoader onComplete={() => setShowFeatureLoader(false)} />;
+  }
+
+  // 3. Main Application Views
   if (diagnosisResult && diagnosisImage) {
     return (
       <DiagnosisResultView 
@@ -324,7 +325,6 @@ const App: React.FC = () => {
     );
   }
 
-  // 2. Camera View
   if (view === 'camera') {
     return (
       <CameraView 
@@ -334,12 +334,10 @@ const App: React.FC = () => {
     );
   }
 
-  // 3. Expert View
   if (view === 'expert') {
     return <ExpertView currentView={view} onChangeView={setView} />;
   }
 
-  // 4. Database View (Search)
   if (view === 'database') {
       if (selectedSpecies) {
           return (
@@ -359,7 +357,6 @@ const App: React.FC = () => {
       );
   }
 
-  // 5. Plant Detail View
   if (selectedPlantId) {
     const plant = plants.find(p => p.id === selectedPlantId);
     if (plant) {
@@ -377,13 +374,10 @@ const App: React.FC = () => {
     }
   }
 
-  // 6. Dashboard (Default)
   return (
     <div className="min-h-screen pb-32 max-w-md mx-auto relative overflow-x-hidden">
-      
       {showSettings && <SettingsView onClose={() => setShowSettings(false)} />}
 
-      {/* Header & Weather */}
       <header className="px-6 pt-12 pb-6">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -398,7 +392,6 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        {/* Weather Widget */}
         <div className="clay-card p-6 relative overflow-hidden group">
            <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-4 -translate-y-4">
               <div className="w-24 h-24 bg-yellow-400 rounded-full blur-2xl"></div>
@@ -406,7 +399,6 @@ const App: React.FC = () => {
            
            <div className="flex justify-between items-end relative z-10">
              <div>
-               {/* Location & Date */}
                <div className="mb-4">
                  <p className="text-slate-800 text-lg font-bold flex items-center gap-1">
                    {weather.city}
@@ -415,7 +407,6 @@ const App: React.FC = () => {
                    {weather.day}, {weather.date}
                  </p>
                </div>
-
                <div className="flex items-start gap-1">
                  <span className="text-5xl font-bold text-slate-800">{weather.temp}°</span>
                  <span className="text-emerald-500 font-bold mt-2">{weather.condition}</span>
@@ -431,7 +422,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Plant List */}
       <main className="px-6">
         <div className="flex justify-between items-center mb-6 pl-1">
           <h2 className="text-xl font-bold text-slate-800">Your Plants</h2>
@@ -468,7 +458,6 @@ const App: React.FC = () => {
                   plant={plant} 
                   onClick={() => setSelectedPlantId(plant.id)} 
                 />
-                {/* Quick Action: Water */}
                 <button 
                   onClick={(e) => {
                       e.stopPropagation();

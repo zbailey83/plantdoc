@@ -51,17 +51,16 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          // Important: Explicitly play to ensure mobile browsers start the stream
-          await videoRef.current.play();
-          setIsStreaming(true);
-          setError(null);
+          // We trigger play, but don't await it to block UI. 
+          // The 'onCanPlay' event on the video tag will handle the ready state.
+          videoRef.current.play().catch(e => console.warn("Autoplay blocked/failed:", e));
         }
       } catch (err) {
         console.warn("Camera access failed or denied:", err);
-        setIsStreaming(false);
-        // If error occurs, we are no longer loading, so fallback UI can show
-      } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+            setIsStreaming(false);
+            setIsLoading(false); // Stop loading to show fallback
+        }
       }
     };
 
@@ -83,6 +82,13 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
 
   const toggleCamera = () => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  const handleCanPlay = () => {
+    if (!isStreaming) {
+        setIsStreaming(true);
+        setIsLoading(false);
+    }
   };
 
   const capturePhoto = () => {
@@ -165,13 +171,14 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
       {/* Main Viewport */}
       <div className="flex-1 relative bg-gray-900 overflow-hidden">
         
-        {/* Video Layer - Always rendered to ensure ref exists */}
+        {/* Video Layer - Always mounted. Opacity controlled by preview state. */}
         <video 
             ref={videoRef} 
             autoPlay 
             playsInline 
             muted 
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isStreaming && !preview ? 'opacity-100' : 'opacity-0'}`}
+            onCanPlay={handleCanPlay}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${!preview ? 'opacity-100' : 'opacity-0'}`}
         />
 
         {/* State: Preview Image */}
@@ -186,7 +193,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ onBack, onDiagnosisCompl
           </div>
         )}
 
-        {/* State: No Camera (Fallback) - Only shown if failed, not loading, and no preview */}
+        {/* State: No Camera (Fallback) - Only shown if failed (not streaming) AND not loading AND no preview */}
         {!isStreaming && !isLoading && !preview && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-gray-900 z-10">
             <div className="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mb-6">

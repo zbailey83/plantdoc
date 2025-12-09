@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { XIcon, UserIcon } from './Icons';
+import React, { useState, useEffect } from 'react';
+import { XIcon, UserIcon, CheckIcon, EditIcon } from './Icons';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabaseClient';
+import { UserProfile } from '../types';
 
 interface SettingsViewProps {
   onClose: () => void;
@@ -8,8 +10,62 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onClose }) => {
   const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  // Preferences (Local state for now, could be moved to DB)
   const [notifications, setNotifications] = useState(true);
   const [seasonalTips, setSeasonalTips] = useState(true);
+
+  // Edit Mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      getProfile();
+    }
+  }, [user]);
+
+  const getProfile = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        setProfile(data);
+        setEditName(data.full_name || '');
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: editName, updated_at: new Date() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, full_name: editName } : null);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const Toggle = ({ active, onToggle }: { active: boolean; onToggle: () => void }) => (
     <button 
@@ -47,13 +103,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onClose }) => {
         </div>
 
         {/* User Profile */}
-        <div className="clay-card p-6 mb-6 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-white shadow-inner flex items-center justify-center text-emerald-600">
+        <div className="clay-card p-6 mb-6 flex items-center gap-4 relative group">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-white shadow-inner flex items-center justify-center text-emerald-600 shrink-0">
              <UserIcon className="w-8 h-8" />
           </div>
+          
           <div className="flex-1 overflow-hidden">
-            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Signed in as</label>
-            <p className="text-lg font-bold text-slate-700 truncate">{user?.email}</p>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Profile</label>
+              {!isEditing ? (
+                 <button onClick={() => setIsEditing(true)} className="p-1 rounded-full hover:bg-slate-100 text-slate-400">
+                    <EditIcon className="w-4 h-4" />
+                 </button>
+              ) : (
+                <button onClick={updateProfile} disabled={loading} className="p-1 rounded-full bg-emerald-100 text-emerald-600">
+                    <CheckIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {isEditing ? (
+                <input 
+                   autoFocus
+                   value={editName}
+                   onChange={(e) => setEditName(e.target.value)}
+                   placeholder="Enter your name"
+                   className="w-full bg-white/50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 font-bold outline-none focus:ring-2 ring-emerald-400"
+                />
+            ) : (
+                <p className="text-lg font-bold text-slate-700 truncate">
+                    {profile?.full_name || 'Gardener'}
+                </p>
+            )}
+            <p className="text-sm text-slate-500 truncate font-medium">{user?.email}</p>
           </div>
         </div>
 

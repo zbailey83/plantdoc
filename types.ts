@@ -61,6 +61,14 @@ export interface Species {
   suggestedFertilizeFrequency?: number;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string;
+  avatar_url?: string;
+  created_at: string;
+}
+
 export type ViewState = 'dashboard' | 'camera' | 'plant-detail' | 'expert' | 'premium' | 'database';
 
 export interface ViewProps {
