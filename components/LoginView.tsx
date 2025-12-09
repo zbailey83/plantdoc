@@ -53,7 +53,7 @@ export const LoginView: React.FC = () => {
               <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 border border-white/30 shadow-lg">
                  <LeafIcon className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight mb-4 font-quicksand">Verdant</h1>
+              <h1 className="text-5xl md:text-6xl font-extrabold italic text-white tracking-tight mb-4">Verdant</h1>
               <p className="text-emerald-100 text-xl font-medium max-w-md leading-relaxed">
                   Your intelligent companion for a thriving garden. Diagnose issues, track care, and grow with confidence.
               </p>

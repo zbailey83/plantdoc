@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { LeafIcon } from './Icons';
 
@@ -40,7 +41,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
       </div>
 
       <div className="text-center space-y-2 mb-12">
-        <h1 className="text-5xl font-bold text-slate-800 tracking-tight drop-shadow-sm font-quicksand">PlantDoc</h1>
+        <h1 className="text-5xl font-extrabold italic text-slate-800 tracking-tight drop-shadow-sm">Verdant</h1>
         <p className="text-slate-500 font-medium text-lg tracking-wide">Your AI Botanist</p>
       </div>
 
@@ -48,7 +49,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         onClick={handleStart}
         className="clay-btn-primary px-10 py-4 text-xl font-bold tracking-wide animate-[bounce_2s_infinite]"
       >
-        Enter Garden
+        Enter Garden Verdant 
       </button>
 
       <div className="absolute bottom-8 text-slate-400 text-sm font-medium">

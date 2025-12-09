@@ -381,7 +381,7 @@ const App: React.FC = () => {
       <header className="px-6 pt-12 pb-6">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-[#064E3B] tracking-tight">Verdant</h1>
+            <h1 className="text-4xl font-extrabold italic text-[#064E3B] tracking-tight">Verdant</h1>
             <p className="text-[#059669] font-medium mt-1">Grow with confidence.</p>
           </div>
           <button 

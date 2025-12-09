@@ -106,7 +106,7 @@ export const FeatureLoader: React.FC<FeatureLoaderProps> = ({ onComplete }) => {
                             idx === currentStep ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
                         }`}
                     >
-                        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-3 leading-tight font-quicksand">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-3 leading-tight">
                             {feature.text}
                         </h2>
                         <p className="text-slate-500 font-medium text-base sm:text-lg leading-relaxed max-w-xs mx-auto">
