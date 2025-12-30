@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, Plant, DiagnosisResult, HealthStatus, Species } from './types';
 import { Navigation } from './components/Navigation';
@@ -38,11 +37,9 @@ const App: React.FC = () => {
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
   const [selectedSpecies, setSelectedSpecies] = useState<Species | null>(null);
   
-  // State for the diagnosis flow
   const [diagnosisResult, setDiagnosisResult] = useState<DiagnosisResult | null>(null);
   const [diagnosisImage, setDiagnosisImage] = useState<string | null>(null);
 
-  // Weather State
   const [weather, setWeather] = useState<WeatherData>({
     temp: 72,
     condition: "Sunny",
@@ -52,16 +49,6 @@ const App: React.FC = () => {
     day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
   });
 
-  // Handle splash and initial loader sequence
-  useEffect(() => {
-    // If user is already authenticated when app loads, splash handles the transition
-    if (user && !authLoading) {
-      // Trigger feature loader if we haven't seen it in this session (simplified as always showing on auth load for this demo)
-      // For a real app, you might check a session flag
-    }
-  }, [user, authLoading]);
-
-  // Fetch Plants from Supabase
   useEffect(() => {
     if (user && !showSplash && !showFeatureLoader) {
       const fetchPlants = async () => {
@@ -87,7 +74,7 @@ const App: React.FC = () => {
 
           setPlants(loadedPlants);
         } catch (error) {
-          console.error('Error fetching plants:', error);
+          console.warn('Supabase fetch failed:', error);
         } finally {
           setLoadingPlants(false);
         }
@@ -97,50 +84,58 @@ const App: React.FC = () => {
     }
   }, [user, showSplash, showFeatureLoader]);
 
-  // Weather Fetching
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        
-        try {
-          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&temperature_unit=fahrenheit`);
-          const weatherData = await weatherRes.json();
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
           
-          const getCondition = (code: number) => {
-             if (code === 0) return "Sunny";
-             if (code >= 1 && code <= 3) return "Cloudy";
-             if (code >= 45 && code <= 48) return "Foggy";
-             if (code >= 51 && code <= 67) return "Rainy";
-             if (code >= 71 && code <= 77) return "Snowy";
-             if (code >= 80 && code <= 82) return "Showers";
-             if (code >= 95) return "Stormy";
-             return "Clear";
-          };
-
-          let city = "Local Garden";
           try {
-             const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-             const geoData = await geoRes.json();
-             if (geoData.city || geoData.locality) {
-                city = geoData.city || geoData.locality;
-             }
-          } catch (e) { console.warn("Geo fetch failed", e); }
+            // Defensive fetch with timeout or explicit error handling
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&temperature_unit=fahrenheit`);
+            if (!weatherRes.ok) throw new Error('Weather Service Unavailable');
+            
+            const weatherData = await weatherRes.json();
+            
+            const getCondition = (code: number) => {
+               if (code === 0) return "Sunny";
+               if (code >= 1 && code <= 3) return "Cloudy";
+               if (code >= 45 && code <= 48) return "Foggy";
+               if (code >= 51 && code <= 67) return "Rainy";
+               if (code >= 71 && code <= 77) return "Snowy";
+               if (code >= 80 && code <= 82) return "Showers";
+               if (code >= 95) return "Stormy";
+               return "Clear";
+            };
 
-          setWeather({
-             temp: Math.round(weatherData.current.temperature_2m),
-             condition: getCondition(weatherData.current.weather_code),
-             humidity: weatherData.current.relative_humidity_2m,
-             city: city,
-             date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-             day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
-          });
+            let city = "Local Garden";
+            try {
+               const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+               if (geoRes.ok) {
+                  const geoData = await geoRes.json();
+                  city = geoData.city || geoData.locality || city;
+               }
+            } catch (e) {
+               console.warn("Geocoding failed, falling back to default city.");
+            }
 
-        } catch (error) {
-           console.error("Weather update failed", error);
-        }
-      });
+            setWeather({
+               temp: Math.round(weatherData.current.temperature_2m),
+               condition: getCondition(weatherData.current.weather_code),
+               humidity: weatherData.current.relative_humidity_2m,
+               city: city,
+               date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+               day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
+            });
+
+          } catch (error) {
+             console.warn("Weather sync failed - continuing with default weather data.");
+          }
+        },
+        (error) => console.warn("Geolocation access denied or failed.", error),
+        { timeout: 8000 }
+      );
     }
   }, []);
 
@@ -172,9 +167,9 @@ const App: React.FC = () => {
         if (error) throw error;
         setPlants(prev => prev.map(p => p.id === newPlant.id ? { ...p, id: data.id } : p));
     } catch (err) {
-        console.error("Error saving plant:", err);
-        setPlants(prev => prev.filter(p => p.id !== newPlant.id));
-        alert("Failed to save plant to cloud.");
+        console.error("Cloud save failed:", err);
+        // We keep it in local state but warn the user
+        alert("Saved locally, but could not sync to cloud. Please check your connection.");
     }
   };
 
@@ -188,7 +183,7 @@ const App: React.FC = () => {
           }).eq('id', updatedPlant.id);
           if (error) throw error;
       } catch (err) {
-          console.error("Error updating plant:", err);
+          console.error("Cloud update failed:", err);
       }
   };
 
@@ -200,7 +195,7 @@ const App: React.FC = () => {
         const { error } = await supabase.from('plants').delete().eq('id', id);
         if (error) throw error;
     } catch (err) {
-        console.error("Error deleting plant:", err);
+        console.error("Cloud deletion failed:", err);
     }
   };
 
@@ -277,7 +272,7 @@ const App: React.FC = () => {
           const { error } = await supabase.from('plants').update({ schedule: schedule }).eq('id', id);
           if (error) throw error;
       } catch (err) {
-          console.error("Error updating schedule:", err);
+          console.error("Cloud schedule sync failed:", err);
       }
   };
 
@@ -289,28 +284,21 @@ const App: React.FC = () => {
       );
   }
 
-  // Not Logged In
   if (!user) {
       return <LoginView />;
   }
 
-  // Logged In Flow: Splash -> FeatureLoader -> Dashboard
-
-  // 1. Initial Splash Screen (Logo)
   if (showSplash) {
       return <SplashScreen onComplete={() => {
         setShowSplash(false);
-        // Start Feature Loader sequence after Splash
         setShowFeatureLoader(true);
       }} />;
   }
 
-  // 2. Feature Loader (Pseudo-loading)
   if (showFeatureLoader) {
       return <FeatureLoader onComplete={() => setShowFeatureLoader(false)} />;
   }
 
-  // 3. Main Application Views
   if (diagnosisResult && diagnosisImage) {
     return (
       <DiagnosisResultView 
@@ -381,8 +369,8 @@ const App: React.FC = () => {
       <header className="px-6 pt-12 pb-6">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-extrabold italic text-[#064E3B] tracking-tight">Verdant</h1>
-            <p className="text-[#059669] font-medium mt-1">Grow with confidence.</p>
+            <h1 className="text-4xl font-[800] italic text-[#064E3B] tracking-tight">Verdant</h1>
+            <p className="text-[#059669] font-bold mt-1">Grow with confidence.</p>
           </div>
           <button 
             onClick={() => setShowSettings(true)}
@@ -442,7 +430,7 @@ const App: React.FC = () => {
               <LeafIcon className="w-10 h-10" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 mb-2">No plants yet</h3>
-            <p className="text-slate-500 mb-8">Add your first plant to start tracking</p>
+            <p className="text-slate-500 font-bold mb-8">Add your first plant to start tracking</p>
             <button 
               onClick={() => setView('camera')}
               className="clay-btn-secondary px-8 py-3 w-full font-bold flex items-center justify-center gap-2"

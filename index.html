@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -7,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    <title>PlantDoc</title>
+    <title>Verdant - AI Plant Care</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <style>
@@ -16,11 +17,13 @@
         background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
         min-height: 100vh;
         color: #2d2d3a;
-        overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile app feel */
+        overscroll-behavior-y: none;
+        font-weight: 500; /* Use a slightly bolder medium weight as default */
       }
       
       h1, h2, h3, h4, h5, h6 {
         font-family: 'Playfair Display', serif;
+        font-weight: 700;
       }
 
       /* Claymorphism Utilities */
@@ -113,7 +116,6 @@
           -4px -4px 8px rgba(255, 255, 255, 0.8);
       }
 
-      /* Hide scrollbar for clean mobile look */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
