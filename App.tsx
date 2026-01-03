@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, Plant, DiagnosisResult, HealthStatus, Species } from './types';
 import { Navigation } from './components/Navigation';
@@ -26,7 +27,7 @@ interface WeatherData {
 }
 
 const App: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isGuest } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [showFeatureLoader, setShowFeatureLoader] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -49,8 +50,17 @@ const App: React.FC = () => {
     day: new Date().toLocaleDateString('en-US', { weekday: 'long' })
   });
 
+  // Load plants from localStorage if guest, otherwise from Supabase
   useEffect(() => {
     if (user && !showSplash && !showFeatureLoader) {
+      if (isGuest) {
+        const localPlants = localStorage.getItem('verdant_local_plants');
+        if (localPlants) {
+          setPlants(JSON.parse(localPlants));
+        }
+        return;
+      }
+
       const fetchPlants = async () => {
         setLoadingPlants(true);
         try {
@@ -82,7 +92,14 @@ const App: React.FC = () => {
 
       fetchPlants();
     }
-  }, [user, showSplash, showFeatureLoader]);
+  }, [user, showSplash, showFeatureLoader, isGuest]);
+
+  // Persistent storage for guest mode
+  useEffect(() => {
+    if (isGuest && plants.length > 0) {
+      localStorage.setItem('verdant_local_plants', JSON.stringify(plants));
+    }
+  }, [plants, isGuest]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -152,6 +169,8 @@ const App: React.FC = () => {
     setDiagnosisImage(null);
     setView('dashboard');
 
+    if (isGuest) return; // Skip cloud save for guests
+
     try {
         const { data, error } = await supabase.from('plants').insert({
             user_id: user.id,
@@ -176,6 +195,8 @@ const App: React.FC = () => {
   const handleUpdatePlant = async (updatedPlant: Plant) => {
       setPlants(prev => prev.map(p => p.id === updatedPlant.id ? updatedPlant : p));
       
+      if (isGuest) return;
+
       try {
           const { error } = await supabase.from('plants').update({
             name: updatedPlant.name,
@@ -191,6 +212,9 @@ const App: React.FC = () => {
     setPlants(prev => prev.filter(p => p.id !== id));
     setSelectedPlantId(null);
     setView('dashboard');
+    
+    if (isGuest) return;
+
     try {
         const { error } = await supabase.from('plants').delete().eq('id', id);
         if (error) throw error;
@@ -267,6 +291,8 @@ const App: React.FC = () => {
 
       const updatedPlant = { ...plant, schedule };
       setPlants(prev => prev.map(p => p.id === id ? updatedPlant : p));
+
+      if (isGuest) return;
 
       try {
           const { error } = await supabase.from('plants').update({ schedule: schedule }).eq('id', id);

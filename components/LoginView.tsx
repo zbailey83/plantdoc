@@ -2,8 +2,10 @@
 import React, { useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { LeafIcon, AlertIcon, ArrowLeftIcon } from './Icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export const LoginView: React.FC = () => {
+  const { signInAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,8 +81,14 @@ export const LoginView: React.FC = () => {
                  </div>
                  <h2 className="text-xl font-bold text-slate-800 mb-2">Setup Required</h2>
                  <p className="text-slate-600 mb-4 text-sm">
-                   To use this app, you need to connect a Supabase database.
+                   To use this app, you need to connect a Supabase database or proceed as a guest.
                  </p>
+                 <button 
+                    onClick={signInAsGuest}
+                    className="w-full clay-btn-secondary py-3 font-bold mb-4"
+                 >
+                    Continue as Guest
+                 </button>
                  <div className="bg-slate-100 p-4 rounded-xl text-left text-xs text-slate-600 font-mono mb-4 break-all">
                     REACT_APP_SUPABASE_URL<br/>
                     REACT_APP_SUPABASE_ANON_KEY
@@ -134,17 +142,27 @@ export const LoginView: React.FC = () => {
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full clay-btn-primary py-4 font-bold text-lg mt-4 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] transition-all shadow-lg"
-                    >
-                        {loading ? (
-                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                            isSignUp ? 'Create Account' : 'Sign In'
-                        )}
-                    </button>
+                    <div className="space-y-3 pt-4">
+                      <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full clay-btn-primary py-4 font-bold text-lg flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-[0.98] transition-all shadow-lg"
+                      >
+                          {loading ? (
+                              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                              isSignUp ? 'Create Account' : 'Sign In'
+                          )}
+                      </button>
+
+                      <button 
+                        type="button"
+                        onClick={signInAsGuest}
+                        className="w-full clay-btn-secondary py-3 font-bold text-slate-600 flex items-center justify-center transform active:scale-[0.98] transition-all"
+                      >
+                        Continue as Guest
+                      </button>
+                    </div>
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-slate-100 text-center">
